@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>✨ Tic‑Tac‑Toe · GitHub Pages</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+      padding: 1rem;
+      margin: 0;
+    }
+
+    .game-card {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(8px);
+      border-radius: 3.5rem;
+      padding: 2.5rem 2.5rem 2.8rem;
+      box-shadow: 0 25px 40px -10px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+      max-width: 520px;
+      width: 100%;
+      transition: all 0.2s ease;
+    }
+
+    h1 {
+      text-align: center;
+      font-weight: 500;
+      letter-spacing: 2px;
+      font-size: 2rem;
+      color: #f1f5f9;
+      text-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      margin-bottom: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    h1 span {
+      background: #3b82f6;
+      font-size: 1.1rem;
+      font-weight: 600;
+      padding: 0.1rem 0.9rem;
+      border-radius: 40px;
+      color: #f8fafc;
+      box-shadow: inset 0 -2px 0 #1d4ed8;
+    }
+
+    .status-area {
+      background: #0b1120cc;
+      border-radius: 60px;
+      padding: 0.6rem 1.8rem;
+      margin-bottom: 2rem;
+      text-align: center;
+      border: 1px solid #334155;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
+    }
+
+    #statusMessage {
+      font-size: 1.5rem;
+      font-weight: 500;
+      color: #e2e8f0;
+      letter-spacing: 0.3px;
+      min-height: 3.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+    }
+
+    #statusMessage .turn-indicator {
+      display: inline-block;
+      width: 1.8rem;
+      height: 1.8rem;
+      border-radius: 8px;
+      background: #3b82f6;
+      margin-left: 6px;
+      box-shadow: 0 0 12px #3b82f680;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      background: transparent;
+      margin-bottom: 2.2rem;
+    }
+
+    .cell {
+      aspect-ratio: 1 / 1;
+      background: #0f172a;
+      border-radius: 28px;
+      box-shadow: 0 8px 0 #020617, 0 10px 20px -5px #00000080;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 4.2rem;
+      font-weight: 600;
+      color: #f8fafc;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      border: 1px solid #334155;
+      text-shadow: 0 4px 8px #00000066;
+    }
+
+    .cell:active {
+      transform: scale(0.94);
+      box-shadow: 0 4px 0 #020617;
+    }
+
+    .cell.x-move {
+      color: #60a5fa;
+      text-shadow: 0 0 16px #3b82f6aa;
+    }
+
+    .cell.o-move {
+      color: #f472b6;
+      text-shadow: 0 0 16px #ec4899aa;
+    }
+
+    .cell.win-highlight {
+      background: #2d3748;
+      box-shadow: 0 0 0 2px #facc15, 0 8px 0 #020617;
+      transform: scale(1.02);
+      transition: 0.1s;
+    }
+
+    .reset-area {
+      display: flex;
+      justify-content: center;
+    }
+
+    #resetButton {
+      background: #1e293b;
+      border: none;
+      padding: 0.8rem 2.8rem;
+      border-radius: 60px;
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #e2e8f0;
+      box-shadow: 0 8px 0 #0f172a, 0 6px 14px #00000055;
+      cursor: pointer;
+      transition: all 0.1s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      letter-spacing: 0.5px;
+      border: 1px solid #475569;
+    }
+
+    #resetButton:hover {
+      background: #2d3a4f;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 0 #0f172a, 0 10px 20px #00000066;
+    }
+
+    #resetButton:active {
+      transform: translateY(6px);
+      box-shadow: 0 2px 0 #0f172a;
+    }
+
+    .footer-note {
+      text-align: center;
+      margin-top: 1.5rem;
+      color: #64748b;
+      font-size: 0.85rem;
+      letter-spacing: 0.3px;
+      border-top: 1px dashed #334155;
+      padding-top: 1.2rem;
+    }
+
+    .footer-note a {
+      color: #94a3b8;
+      text-decoration: none;
+      font-weight: 500;
+      border-bottom: 1px dotted #475569;
+    }
+
+    .footer-note a:hover {
+      color: #cbd5e1;
+    }
+
+    @media (max-width: 460px) {
+      .game-card { padding: 1.5rem; }
+      .cell { font-size: 3.2rem; border-radius: 20px; }
+      #statusMessage { font-size: 1.2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="game-card">
+  <h1>
+    ✦ Tic‑Tac‑Toe
+    <span>3×3</span>
+  </h1>
+
+  <div class="status-area">
+    <div id="statusMessage">
+      <span id="turnText">Your turn</span>
+      <span class="turn-indicator" id="turnIndicator" style="background: #60a5fa;"></span>
+    </div>
+  </div>
+
+  <!-- 3x3 Board -->
+  <div class="board" id="board">
+    <!-- 9 cells will be generated by JS -->
+  </div>
+
+  <div class="reset-area">
+    <button id="resetButton">⟳ New game</button>
+  </div>
+  <div class="footer-note">
+    <span>⚡ hosted on </span><a href="#" target="_blank">GitHub Pages</a>
+  </div>
+</div>
+
+<script>
+  (function() {
+    // ----- GAME STATE -----
+    const boardEl = document.getElementById('board');
+    const statusMsg = document.getElementById('statusMessage');
+    const turnText = document.getElementById('turnText');
+    const turnIndicator = document.getElementById('turnIndicator');
+
+    let board = Array(9).fill(null);          // null, 'X', 'O'
+    let currentPlayer = 'X';                  // 'X' always starts
+    let gameActive = true;
+    let winPattern = null;                    // [index, index, index] or null
+
+    // ----- DOM REFS (cells) -----
+    let cellElements = [];
+
+    // ----- WIN PATTERNS -----
+    const winCombos = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],  // rows
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],  // columns
+      [0, 4, 8], [2, 4, 6]              // diagonals
+    ];
+
+    // ----- RENDER BOARD (from board array) -----
+    function renderBoard() {
+      // clear board
+      boardEl.innerHTML = '';
+      cellElements = [];
+
+      for (let i = 0; i < 9; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.index = i;
+
+        const value = board[i];
+        if (value === 'X') {
+          cell.textContent = 'X';
+          cell.classList.add('x-move');
+        } else if (value === 'O') {
+          cell.textContent = 'O';
+          cell.classList.add('o-move');
+        } else {
+          cell.textContent = '';
+        }
+
+        // if game is active and cell is empty, add click listener
+        if (gameActive && board[i] === null) {
+          cell.addEventListener('click', cellClickHandler);
+        } else {
+          // remove any previous listener (just in case)
+          cell.removeEventListener('click', cellClickHandler);
+        }
+
+        boardEl.appendChild(cell);
+        cellElements.push(cell);
+      }
+
+      // highlight winning cells if any
+      if (winPattern && gameActive === false) {
+        winPattern.forEach(idx => {
+          const winCell = cellElements[idx];
+          if (winCell) {
+            winCell.classList.add('win-highlight');
+          }
+        });
+      }
+
+      updateStatusDisplay();
+    }
+
+    // ----- CLICK HANDLER (with closure for index) -----
+    function cellClickHandler(e) {
+      const cell = e.currentTarget;
+      const index = parseInt(cell.dataset.index, 10);
+
+      // extra safety: if game inactive, cell empty, or already filled → ignore
+      if (!gameActive) return;
+      if (board[index] !== null) return;
+
+      // make move
+      makeMove(index);
+    }
+
+    // ----- MAKE MOVE -----
+    function makeMove(index) {
+      if (!gameActive) return;
+      if (board[index] !== null) return;
+
+      // place marker
+      board[index] = currentPlayer;
+
+      // check win / draw
+      const winner = checkWinner();
+
+      if (winner) {
+        // winner is 'X' or 'O'
+        gameActive = false;
+        winPattern = winner.pattern;
+        renderBoard();  // re-render with win highlights
+        updateStatusDisplay();
+        return;
+      }
+
+      // check draw (board full)
+      if (board.every(cell => cell !== null)) {
+        gameActive = false;
+        winPattern = null;
+        renderBoard();
+        updateStatusDisplay();
+        return;
+      }
+
+      // switch player
+      currentPlayer = (currentPlayer === 'X' ? 'O' : 'X');
+      renderBoard();  // re-render (updates turn indicator & click listeners)
+    }
+
+    // ----- CHECK WINNER -----
+    function checkWinner() {
+      for (let combo of winCombos) {
+        const [a, b, c] = combo;
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+          return { winner: board[a], pattern: combo };
+        }
+      }
+      return null;
+    }
+
+    // ----- UPDATE STATUS + TURN INDICATOR -----
+    function updateStatusDisplay() {
+      // clear highlight from all cells first (except win highlight)
+      cellElements.forEach(cell => cell.classList.remove('win-highlight'));
+
+      // re-apply win highlight if game over & winPattern exists
+      if (!gameActive && winPattern) {
+        winPattern.forEach(idx => {
+          if (cellElements[idx]) {
+            cellElements[idx].classList.add('win-highlight');
+          }
+        });
+      }
+
+      // update text & indicator
+      if (!gameActive) {
+        // game over
+        if (winPattern) {
+          const winnerSymbol = board[winPattern[0]]; // 'X' or 'O'
+          const winnerName = winnerSymbol === 'X' ? 'X' : 'O';
+          turnText.textContent = `🏆 ${winnerName} wins!`;
+          turnIndicator.style.background = winnerSymbol === 'X' ? '#60a5fa' : '#f472b6';
+          turnIndicator.style.boxShadow = `0 0 20px ${winnerSymbol === 'X' ? '#3b82f6aa' : '#ec4899aa'}`;
+        } else {
+          // draw
+          turnText.textContent = `🤝 Draw!`;
+          turnIndicator.style.background = '#94a3b8';
+          turnIndicator.style.boxShadow = '0 0 12px #94a3b880';
+        }
+        return;
+      }
+
+      // game active
+      const playerSymbol = currentPlayer;
+      const playerName = playerSymbol === 'X' ? 'X' : 'O';
+      turnText.textContent = `Player ${playerName}'s turn`;
+      turnIndicator.style.background = playerSymbol === 'X' ? '#60a5fa' : '#f472b6';
+      turnIndicator.style.boxShadow = `0 0 20px ${playerSymbol === 'X' ? '#3b82f6aa' : '#ec4899aa'}`;
+    }
+
+    // ----- RESET GAME -----
+    function resetGame() {
+      board = Array(9).fill(null);
+      currentPlayer = 'X';
+      gameActive = true;
+      winPattern = null;
+
+      // remove all click listeners from old cells (by replacing board innerHTML)
+      // we will re-render with fresh listeners
+      renderBoard();
+    }
+
+    // ----- INIT -----
+    function initGame() {
+      // initial render
+      renderBoard();
+
+      // reset button listener
+      const resetBtn = document.getElementById('resetButton');
+      resetBtn.addEventListener('click', resetGame);
+
+      // (optional) set footer link to your github pages url – but we keep it as placeholder
+      const footerLink = document.querySelector('.footer-note a');
+      if (footerLink) {
+        footerLink.href = '#';  // you can replace with your actual URL
+        footerLink.textContent = 'GitHub Pages';
+      }
+    }
+
+    // start everything
+    initGame();
+
+  })();
+</script>
+</body>
+</html>
