@@ -1,5 +1,8 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
+import { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { CONFIG, DEG } from '../config';
 import { clamp01, lerp } from '../core/math';
 import { createFruitIcon } from '../render/fruit/builders';
@@ -16,14 +19,13 @@ export interface ThrowSolution {
   risky: boolean;
 }
 
-const ARC_DOTS = 26;
-const GRAVITY = Math.abs(CONFIG.physics.gravity);
-
 /** Holds the next fruit, turns drag input into a launch, and draws the aim. */
 export class Thrower {
   private readonly group = new THREE.Group();
   private readonly holder = new THREE.Group();
-  private readonly arc: THREE.InstancedMesh;
+  private readonly arc: Line2;
+  private readonly arcGeometry = new LineGeometry();
+  private readonly arcMaterial: LineMaterial;
   private readonly landingRing: THREE.Mesh;
   private readonly powerRing: THREE.Mesh;
   private held: THREE.Object3D | null = null;
@@ -45,18 +47,20 @@ export class Thrower {
     private readonly physics: PhysicsWorld,
     private readonly rig: CameraRig,
   ) {
-    const dotGeometry = new THREE.SphereGeometry(0.045, 6, 5);
-    const dotMaterial = new THREE.MeshBasicMaterial({ color: 0xfffdf5, transparent: true, opacity: 0.9 });
-    this.arc = new THREE.InstancedMesh(dotGeometry, dotMaterial, ARC_DOTS);
+    this.arcMaterial = new LineMaterial({ transparent: true, depthWrite: false });
+    this.arcMaterial.color.setHex(CONFIG.trajectory.color);
+    this.arcMaterial.opacity = CONFIG.trajectory.opacity;
+    this.arcMaterial.linewidth = CONFIG.trajectory.thicknessPx;
+    this.arc = new Line2(this.arcGeometry, this.arcMaterial);
     this.arc.frustumCulled = false;
-    this.arc.count = 0;
+    this.arc.visible = false;
 
     this.landingRing = new THREE.Mesh(
-      new THREE.RingGeometry(0.24, 0.36, 32),
+      new THREE.RingGeometry(CONFIG.landingRing.innerRadius, CONFIG.landingRing.outerRadius, 32),
       new THREE.MeshBasicMaterial({
-        color: 0xffffff,
+        color: CONFIG.landingRing.safeColor,
         transparent: true,
-        opacity: 1,
+        opacity: CONFIG.landingRing.opacity,
         side: THREE.DoubleSide,
         depthTest: false,
       }),
@@ -82,6 +86,21 @@ export class Thrower {
     parent.add(this.group);
   }
 
+  /** Keeps the fat-line trajectory's on-screen thickness correct after a resize. */
+  setResolution(width: number, height: number): void {
+    this.arcMaterial.resolution.set(width, height);
+  }
+
+  /** Rebuilds the landing ring's geometry after a dev-panel thickness tweak. */
+  applyRingConfig(): void {
+    this.landingRing.geometry.dispose();
+    this.landingRing.geometry = new THREE.RingGeometry(
+      CONFIG.landingRing.innerRadius,
+      CONFIG.landingRing.outerRadius,
+      32,
+    );
+  }
+
   setTier(tier: number): void {
     this.tier = tier;
     if (this.held) this.holder.remove(this.held);
@@ -98,17 +117,20 @@ export class Thrower {
 
   /** Where the fruit is held: a fixed gap in front of wherever the camera is. */
   originFor(out = new THREE.Vector3()): THREE.Vector3 {
-    const distance = Math.max(
-      CONFIG.throw.minOriginDistance,
-      this.rig.boom - CONFIG.throw.cameraGap,
-    );
+    const boom = this.rig.boom;
+    const distance = Math.max(CONFIG.throw.minOriginDistance, boom - CONFIG.throw.cameraGap);
     this.rig.horizontalDirection(out).multiplyScalar(distance);
-    out.y = CONFIG.throw.originHeight;
+    // The camera's own height scales with boom/radius so it always looks at
+    // the plate from the same angle regardless of zoom (see CameraRig.update).
+    // Scale the held fruit's height the same way, or it drifts out of the
+    // view cone at the zoom extremes as the camera's eye-line moves past it.
+    out.y = CONFIG.throw.originHeight * (boom / CONFIG.camera.radius);
     return out;
   }
 
   solve(charge: number, yawInput: number, out = this.solution): ThrowSolution {
     const pitch = CONFIG.throw.pitchDeg * DEG;
+    const gravity = Math.abs(CONFIG.physics.gravity);
     const origin = this.originFor(out.origin);
     const originDistance = Math.hypot(origin.x, origin.z);
     // Charge is measured against the plate, not the launcher, so the dish stays
@@ -123,7 +145,7 @@ export class Thrower {
     // reach instead of to a raw impulse the player has to learn.
     const cos = Math.cos(pitch);
     const denominator = 2 * cos * cos * (distance * Math.tan(pitch) + height);
-    const speed = Math.sqrt(Math.max(1, (GRAVITY * distance * distance) / denominator));
+    const speed = Math.sqrt(Math.max(1, (gravity * distance * distance) / denominator));
 
     const yawOffset = yawInput * CONFIG.throw.yawRangeDeg * DEG;
     const toPlate = this.rig.horizontalDirection(_dir).multiplyScalar(-1);
@@ -137,20 +159,19 @@ export class Thrower {
   /** Steps the arc through the world so it stops on the pile, not the floor. */
   private predict(solution: ThrowSolution): void {
     const step = 0.045;
+    const gravity = Math.abs(CONFIG.physics.gravity);
     const point = _a.copy(solution.origin);
     const next = _b;
     const dir = _c;
     solution.impact = null;
 
-    this.arc.count = 0;
-    const matrix = new THREE.Matrix4();
-    let dotIndex = 0;
+    const points: number[] = [solution.origin.x, solution.origin.y, solution.origin.z];
 
     for (let i = 0; i < 70; i++) {
       const t = (i + 1) * step;
       next.set(
         solution.origin.x + solution.velocity.x * t,
-        solution.origin.y + solution.velocity.y * t - 0.5 * GRAVITY * t * t,
+        solution.origin.y + solution.velocity.y * t - 0.5 * gravity * t * t,
         solution.origin.z + solution.velocity.z * t,
       );
 
@@ -165,23 +186,24 @@ export class Thrower {
           const impact = point.clone().addScaledVector(dir, hit.timeOfImpact);
           solution.impact = impact;
           solution.impactNormal.set(hit.normal.x, hit.normal.y, hit.normal.z);
+          points.push(impact.x, impact.y, impact.z);
           break;
         }
       }
 
-      // Skip the first samples: right under the camera they read as blobs.
-      if (dotIndex < ARC_DOTS && i >= 3 && i % 3 === 0) {
-        matrix.makeTranslation(next.x, next.y, next.z);
-        matrix.scale(_scale.setScalar(1));
-        this.arc.setMatrixAt(dotIndex++, matrix);
-      }
-
+      points.push(next.x, next.y, next.z);
       point.copy(next);
       if (next.y < CONFIG.plate.tableY) break;
     }
 
-    this.arc.count = dotIndex;
-    this.arc.instanceMatrix.needsUpdate = true;
+    // Line2 needs at least 2 points to render a segment.
+    if (points.length >= 6) {
+      this.arcGeometry.setPositions(points);
+      this.arc.computeLineDistances();
+      this.arcMaterial.color.setHex(CONFIG.trajectory.color);
+      this.arcMaterial.opacity = CONFIG.trajectory.opacity;
+      this.arcMaterial.linewidth = CONFIG.trajectory.thicknessPx;
+    }
 
     const impact = solution.impact;
     solution.risky =
@@ -208,9 +230,11 @@ export class Thrower {
         this.landingRing.quaternion.setFromUnitVectors(FORWARD, solution.impactNormal);
         const pulse = 1 + Math.sin(this.bob * 7) * 0.06;
         this.landingRing.scale.setScalar((0.85 + TIERS[this.tier].radius * 1.8) * pulse);
-        (this.landingRing.material as THREE.MeshBasicMaterial).color.setHex(
-          solution.risky ? 0xffb03a : 0xffffff,
+        const ringMaterial = this.landingRing.material as THREE.MeshBasicMaterial;
+        ringMaterial.color.setHex(
+          solution.risky ? CONFIG.landingRing.riskyColor : CONFIG.landingRing.safeColor,
         );
+        ringMaterial.opacity = CONFIG.landingRing.opacity;
       } else {
         this.landingRing.visible = false;
       }
@@ -222,7 +246,6 @@ export class Thrower {
         charge > 0.85 ? 0xff8b5e : charge > 0.55 ? 0xffd166 : 0x8de8a1,
       );
     } else {
-      this.arc.count = 0;
       this.arc.visible = false;
       this.landingRing.visible = false;
       this.powerRing.visible = false;
@@ -236,6 +259,5 @@ const _a = new THREE.Vector3();
 const _b = new THREE.Vector3();
 const _c = new THREE.Vector3();
 const _origin = new THREE.Vector3();
-const _scale = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _ray = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 1, z: 0 });
