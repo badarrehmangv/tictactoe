@@ -99,7 +99,22 @@ ring and detect risky (near-rim) landings.
 using procedural geometry generators in `geometry.ts` (`displace`, `colorize`,
 `fibonacciSphere`, noise helpers) — vertex-colored, textureless. Every fruit placed in
 the world is `clone(true)` of the shared prototype scaled to that tier's radius, so
-geometry/material stay shared and draw calls stay low. `src/render/scene.ts` builds
+geometry/material stay shared and draw calls stay low.
+
+`displace()` also **welds the geometry** before computing normals, and this is
+load-bearing for how the fruit looks: `IcosahedronGeometry` is non-indexed, so
+normals computed on it are per-face and the fruit renders as hard facets whatever
+`flatShading` says. It deletes the normal/uv attributes (`mergeVertices()` keys on
+every attribute, so leaving stale normals attached makes the weld a silent no-op),
+welds, then recomputes normals so they average across faces. If fruit ever goes
+faceted again, that sequence is the first place to look.
+
+The HUD shows **rendered fruit, not colored circles**: `src/render/fruit/icons.ts`
+renders each prototype to a PNG data URL during loading via its own short-lived
+`WebGLRenderer` (disposed immediately — browsers cap live contexts), and `Game.load()`
+passes them to `hud.setFruitIcons()`. When touching that CSS, never set the
+`background` shorthand from JS on those elements — it writes `background-size`
+inline and silently overrides the stylesheet's `contain` sizing. `src/render/scene.ts` builds
 the rest of the environment (sky gradient shader, table, lights); `src/render/cameraRig.ts`
 is a yaw/radius orbit rig around the plate with shake support and a portrait-mode boom
 adjustment (`CameraRig.boom`) that the thrower reads to keep the held fruit's on-screen
