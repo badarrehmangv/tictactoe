@@ -109,6 +109,17 @@ every attribute, so leaving stale normals attached makes the weld a silent no-op
 welds, then recomputes normals so they average across faces. If fruit ever goes
 faceted again, that sequence is the first place to look.
 
+Fruit wear **cute faces** (`src/render/fruit/faces.ts`): canvas-drawn expression
+textures on camera-facing billboards, with the expression picked each frame from
+pile state (`airborne`, `squash`, `popIn`, `offSince`, `doomed`) plus a `gameover`
+subscription. The faces are deliberately **not** children of the fruit meshes —
+those carry both the physics rotation and a non-uniform squash scale, so a welded
+face rolls under the pile and a counter-rotating child gets sheared. `FaceLayer`
+owns its own meshes and places them from each fruit's world transform, re-applying
+squash in billboard space. `CONFIG.face.surfaceOffset` must stay above 1.0 or the
+fruit's own body occludes its face. The `` ` `` debug overlay lists the live
+expression tally, which is the quickest way to confirm a state is firing.
+
 The HUD shows **rendered fruit, not colored circles**: `src/render/fruit/icons.ts`
 renders each prototype to a PNG data URL during loading via its own short-lived
 `WebGLRenderer` (disposed immediately — browsers cap live contexts), and `Game.load()`
